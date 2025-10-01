@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom'; 
+import { Link, useNavigate } from 'react-router-dom'; 
 import { Button } from './Button';  
 import { InfiniteSlider } from './InfiniteSlider';  
 import { cn } from '../lib/utils'; 
-import { Menu, X, ShoppingBag, User, Heart, Search, Bell, MapPin, ChevronDown } from 'lucide-react';
+import { Menu, X, ShoppingBag, User, Heart, Search, Bell, MapPin, ChevronDown, Settings, LogOut } from 'lucide-react';
 import ProgressiveBlur from './ProgressiveBlur';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { useAuth } from '../hooks/useAuth';
 
 export function HeroSection() {
   return (
@@ -140,10 +141,120 @@ const menuItems = [
 ];
 
 
+const UserProfileDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+      >
+        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+          <User className="h-5 w-5 text-blue-600" />
+        </div>
+        <div className="text-left hidden sm:block">
+          <p className="text-sm font-medium text-gray-900">
+            {user?.profile?.first_name || user?.email?.split('@')[0] || 'User'}
+          </p>
+          <p className="text-xs text-gray-500">My Account</p>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+            {/* User Info */}
+            <div className="px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <User className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.profile?.first_name && user?.profile?.last_name
+                      ? `${user.profile.first_name} ${user.profile.last_name}`
+                      : user?.email}
+                  </p>
+                  <p className="text-xs text-gray-500">{user?.email}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Menu Items */}
+            <div className="py-2">
+              <Link
+                to="/profile"
+                className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setIsOpen(false)}
+              >
+                <Settings className="h-4 w-4" />
+                <span>Profile Settings</span>
+              </Link>
+              
+              <Link
+                to="/cart"
+                className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setIsOpen(false)}
+              >
+                <ShoppingBag className="h-4 w-4" />
+                <span>My Orders</span>
+              </Link>
+              
+              <Link
+                to="/wishlist"
+                className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setIsOpen(false)}
+              >
+                <Heart className="h-4 w-4" />
+                <span>Wishlist</span>
+              </Link>
+            </div>
+
+            {/* Logout */}
+            <div className="border-t border-gray-100 py-2">
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+          
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+        </>
+      )}
+    </div>
+  );
+};
+
 const HeroHeader = () => {
   const [menuState, setMenuState] = useState(false);
   const { cart } = useCart();
   const { wishlistCount } = useWishlist();
+  const { isAuthenticated, loading, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleMobileLogout = async () => {
+    await logout();
+    navigate('/');
+    setMenuState(false);
+  };
   
   return (
     <header className="fixed top-0 w-full z-50 bg-white border-b border-gray-200 shadow-sm">
@@ -199,13 +310,23 @@ const HeroHeader = () => {
 
             {/* Right Section: Icons */}
             <div className="flex items-center space-x-6">
-              {/* Login */}
-              <Button asChild variant="ghost" className="hidden lg:flex items-center space-x-1 text-[#047BD2] hover:text-[#0369A1] hover:bg-blue-50 transition-all duration-200">
-                <Link to="/login">
-                  <User className="h-5 w-5" />
-                  <span className="font-medium font-body">Login</span>
-                </Link>
-              </Button>
+              {/* Conditional Login/Profile */}
+              {loading ? (
+                <div className="hidden lg:flex items-center space-x-1 px-3 py-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                </div>
+              ) : isAuthenticated ? (
+                <div className="hidden lg:block">
+                  <UserProfileDropdown />
+                </div>
+              ) : (
+                <Button asChild variant="ghost" className="hidden lg:flex items-center space-x-1 text-[#047BD2] hover:text-[#0369A1] hover:bg-blue-50 transition-all duration-200">
+                  <Link to="/login">
+                    <User className="h-5 w-5" />
+                    <span className="font-medium font-body">Login</span>
+                  </Link>
+                </Button>
+              )}
 
               {/* More Dropdown */}
               <div className="hidden sm:flex items-center space-x-6 text-sm">
@@ -292,13 +413,31 @@ const HeroHeader = () => {
               </Link>
             ))}
             <div className="border-t border-gray-200 pt-4">
-              <Link
-                to="/login"
-                className="block text-[#047BD2] hover:text-[#0369A1] font-medium font-body py-2 transition-colors duration-200"
-                onClick={() => setMenuState(false)}
-              >
-                Login / Sign Up
-              </Link>
+              {isAuthenticated ? (
+                <div className="space-y-2">
+                  <Link
+                    to="/profile"
+                    className="block text-[#047BD2] hover:text-[#0369A1] font-medium font-body py-2 transition-colors duration-200"
+                    onClick={() => setMenuState(false)}
+                  >
+                    My Profile
+                  </Link>
+                  <button
+                    onClick={handleMobileLogout}
+                    className="block text-red-600 hover:text-red-700 font-medium font-body py-2 transition-colors duration-200 w-full text-left"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="block text-[#047BD2] hover:text-[#0369A1] font-medium font-body py-2 transition-colors duration-200"
+                  onClick={() => setMenuState(false)}
+                >
+                  Login / Sign Up
+                </Link>
+              )}
             </div>
           </div>
         </div>

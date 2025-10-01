@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, Phone } from 'lucide-react';
 import { Button } from '../components/Button';
+import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../components/Notification';
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -18,6 +20,9 @@ const SignupPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const { register } = useAuth();
+  const { showNotification, NotificationComponent } = useNotification();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -85,14 +90,61 @@ const SignupPage = () => {
     }
 
     setIsLoading(true);
+    setSuccess(false);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      console.log('📝 Starting signup process...');
+      
+      const res = await register({ 
+        email: formData.email, 
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone
+      });
+      
+      console.log('📝 Signup response:', res);
+      
+      if (!res.success) {
+        setIsLoading(false);
+        showNotification('error', res.error || 'Signup failed. Please try again.');
+        return;
+      }
+
+      // Show success message and set success state
+      setSuccess(true);
       setIsLoading(false);
-      // In a real app, you would handle the signup response here
-      alert('Account created successfully! Please check your email to verify your account.');
-      navigate('/login');
-    }, 2000);
+      
+      if (res.requiresVerification) {
+        showNotification('success', 'Account created! Please check your email to verify your account before signing in.', 5000);
+        // Redirect after showing message
+        setTimeout(() => {
+          navigate('/login', { 
+            state: { 
+              message: 'Please verify your email before signing in',
+              email: formData.email 
+            }
+          });
+        }, 2500);
+      } else {
+        showNotification('success', 'Account created successfully! Redirecting to login...', 2000);
+        // Redirect for auto-confirmed accounts
+        setTimeout(() => {
+          navigate('/login', { 
+            state: { 
+              message: 'Account created successfully! You can now sign in.',
+              email: formData.email 
+            }
+          });
+        }, 1500);
+      }
+      
+    } catch (error) {
+      console.error('❌ Signup error:', error);
+      setIsLoading(false);
+      setSuccess(false);
+      showNotification('error', error.message || 'Signup failed. Please try again.');
+    }
   };
 
   return (
@@ -308,13 +360,24 @@ const SignupPage = () => {
             <div>
               <Button
                 type="submit"
-                disabled={isLoading}
-                className="w-full bg-[#047BD2] hover:bg-[#0369A1] text-white py-2.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || success}
+                className={`w-full py-2.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                  success 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'bg-[#047BD2] hover:bg-[#0369A1] text-white'
+                }`}
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center space-x-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     <span>Creating Account...</span>
+                  </div>
+                ) : success ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Account Created!</span>
                   </div>
                 ) : (
                   'Create Account'
@@ -373,6 +436,7 @@ const SignupPage = () => {
           </div>
         </div>
       </div>
+      <NotificationComponent />
     </div>
   );
 };

@@ -1,4 +1,13 @@
-export const products = [
+import { productsAPI } from '../services/api';
+
+// Cache for products to avoid repeated API calls
+let productsCache = null;
+let featuredCache = null;
+let lastFetch = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Fallback static products for offline/development mode
+export const fallbackProducts = [
   {
     id: 1,
     name: "Classic Cotton T-Shirt",
@@ -177,6 +186,89 @@ export const products = [
   }
 ];
 
-export const getFeaturedProducts = () => products.filter(product => product.featured);
-export const getProductsByCategory = (categorySlug) => products.filter(product => product.category === categorySlug);
-export const getProductById = (id) => products.find(product => product.id === parseInt(id));
+// Check if cache is valid
+const isCacheValid = () => {
+  return lastFetch && (Date.now() - lastFetch) < CACHE_DURATION;
+};
+
+// Fetch all products from API with caching
+export const fetchProducts = async () => {
+  if (productsCache && isCacheValid()) {
+    return productsCache;
+  }
+
+  try {
+    const response = await productsAPI.getAll();
+    productsCache = response.data.data || [];
+    lastFetch = Date.now();
+    return productsCache;
+  } catch (error) {
+    console.error('Failed to fetch products from API:', error);
+    // Return fallback data if API fails
+    return fallbackProducts;
+  }
+};
+
+// Fetch featured products from API with caching
+export const getFeaturedProducts = async () => {
+  if (featuredCache && isCacheValid()) {
+    return featuredCache;
+  }
+
+  try {
+    const response = await productsAPI.getFeatured();
+    featuredCache = response.data.data || [];
+    lastFetch = Date.now();
+    return featuredCache;
+  } catch (error) {
+    console.error('Failed to fetch featured products from API:', error);
+    // Return fallback featured products
+    return fallbackProducts.filter(product => product.featured);
+  }
+};
+
+// Fetch products by category
+export const getProductsByCategory = async (categorySlug) => {
+  try {
+    const response = await productsAPI.getByCategory(categorySlug);
+    return response.data.data || [];
+  } catch (error) {
+    console.error(`Failed to fetch products for category ${categorySlug}:`, error);
+    // Return fallback filtered products
+    return fallbackProducts.filter(product => product.category === categorySlug);
+  }
+};
+
+// Fetch single product by ID
+export const getProductById = async (id) => {
+  try {
+    const response = await productsAPI.getById(id);
+    return response.data.data;
+  } catch (error) {
+    console.error(`Failed to fetch product with ID ${id}:`, error);
+    // Return fallback product
+    return fallbackProducts.find(product => product.id === parseInt(id));
+  }
+};
+
+// Fetch single product by slug
+export const getProductBySlug = async (slug) => {
+  try {
+    const response = await productsAPI.getBySlug(slug);
+    return response.data.data;
+  } catch (error) {
+    console.error(`Failed to fetch product with slug ${slug}:`, error);
+    // Return fallback product
+    return fallbackProducts.find(product => product.slug === slug);
+  }
+};
+
+// Synchronous access to cached products (for backward compatibility)
+export const products = fallbackProducts;
+
+// Clear cache (useful for admin updates)
+export const clearProductsCache = () => {
+  productsCache = null;
+  featuredCache = null;
+  lastFetch = null;
+};

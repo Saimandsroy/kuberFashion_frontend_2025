@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ProductCard from './ProductCard';
 
-const ProductRibbon = ({ products, title = "Featured Products", showTitle = true }) => {
+const ProductRibbon = ({ products, title = "Featured Products", showTitle = true, loading = false }) => {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -27,8 +27,67 @@ const ProductRibbon = ({ products, title = "Featured Products", showTitle = true
     }
   };
 
+  // Loading skeleton component
+  const ProductSkeleton = () => (
+    <div className="w-40 sm:w-48 md:w-52 flex-shrink-0">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="aspect-square bg-gray-200 animate-pulse"></div>
+        <div className="p-3 space-y-2">
+          <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <section className="bg-white py-8 sm:py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {showTitle && (
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
+              <div>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1a1a1a] font-sans">
+                  {title}
+                </h2>
+                <p className="text-sm sm:text-base text-[#666666] mt-1">
+                  Loading products...
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="overflow-x-auto pb-4">
+            <div className="flex gap-3 sm:gap-4 w-max">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <ProductSkeleton key={index} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   if (!products || products.length === 0) {
-    return null;
+    return (
+      <section className="bg-white py-8 sm:py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {showTitle && (
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
+              <div>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#1a1a1a] font-sans">
+                  {title}
+                </h2>
+                <p className="text-sm sm:text-base text-[#666666] mt-1">
+                  No products available
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    );
   }
 
   return (

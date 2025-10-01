@@ -3,15 +3,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/Button';
+import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../components/Notification';
 
-const LoginPage = () => {
+const LoginPage = ({ isAdmin = false }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const { login, adminLogin } = useAuth();
   const navigate = useNavigate();
+  const { showNotification, NotificationComponent } = useNotification();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -21,20 +26,47 @@ const LoginPage = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    setSuccess(false);
+
+    try {
+      console.log('🔐 Starting login process...', { email: formData.email, isAdmin });
+      
+      const loginFunction = isAdmin ? adminLogin : login;
+      const res = await loginFunction({ 
+        email: formData.email, 
+        password: formData.password 
+      });
+      
+      console.log('📝 Login response:', res);
+      
+      if (!res.success) {
+        setIsLoading(false);
+        showNotification('error', res.error || 'Login failed. Please check your credentials.');
+        return;
+      }
+
+      // Show success state
+      setSuccess(true);
+      showNotification('success', 'Login successful! Redirecting...', 1500);
+      
+      // Auth state is already updated synchronously in useAuth
+      // No need for timeout - navigate immediately
+      if (isAdmin) {
+        console.log('✅ Redirecting to admin dashboard...');
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        console.log('✅ Redirecting to user dashboard...');
+        navigate('/user', { replace: true });
+      }
+      
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      showNotification('error', error.message || 'Login failed. Please try again.');
       setIsLoading(false);
-      // Mock successful login
-      localStorage.setItem('kuberFashionUser', JSON.stringify({
-        email: formData.email,
-        name: formData.email.split('@')[0]
-      }));
-      navigate('/');
-    }, 1500);
+    }
   };
 
   return (
@@ -55,8 +87,12 @@ const LoginPage = () => {
         {/* Logo and Title */}
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">KuberFashion</h1>
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">Welcome back</h2>
-          <p className="text-sm text-gray-600">Sign in to your account to continue</p>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">
+            {isAdmin ? 'Admin Login' : 'Welcome back'}
+          </h2>
+          <p className="text-sm text-gray-600">
+            {isAdmin ? 'Sign in with admin credentials' : 'Sign in to your account to continue'}
+          </p>
         </div>
       </div>
 
@@ -148,13 +184,24 @@ const LoginPage = () => {
             <div>
               <Button
                 type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#047BD2] hover:bg-[#0369A1] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#047BD2] disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || success}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                  success 
+                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' 
+                    : 'bg-[#047BD2] hover:bg-[#0369A1] focus:ring-[#047BD2]'
+                }`}
               >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     <span>Signing in...</span>
+                  </div>
+                ) : success ? (
+                  <div className="flex items-center space-x-2">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Success!</span>
                   </div>
                 ) : (
                   'Sign in'
@@ -224,6 +271,7 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
+      <NotificationComponent />
     </div>
   );
 };

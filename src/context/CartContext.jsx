@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { cartAPI } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 const CartContext = createContext();
 
@@ -73,38 +75,103 @@ const initialState = {
 
 export const CartProvider = ({ children }) => {
   const [cart, dispatch] = useReducer(cartReducer, initialState);
+  const { isAuthenticated } = useAuth();
 
-  // Load cart from localStorage on mount
+  // Load cart from backend on mount if authenticated
   useEffect(() => {
-    const savedCart = localStorage.getItem('kuberFashionCart');
-    if (savedCart) {
-      dispatch({ type: 'LOAD_CART', payload: JSON.parse(savedCart) });
+    const loadCart = async () => {
+      if (isAuthenticated) {
+        try {
+          const response = await cartAPI.getCart();
+          if (response.data?.success) {
+            const items = response.data.data || [];
+            const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+            const totalAmount = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+            dispatch({ 
+              type: 'LOAD_CART', 
+              payload: { items, totalItems, totalAmount } 
+            });
+          }
+        } catch (error) {
+          console.error('Failed to load cart:', error);
+          // Fallback to localStorage for guest users
+          const savedCart = localStorage.getItem('kuberFashionCart');
+          if (savedCart) {
+            dispatch({ type: 'LOAD_CART', payload: JSON.parse(savedCart) });
+          }
+        }
+      } else {
+        // Load from localStorage for guest users
+        const savedCart = localStorage.getItem('kuberFashionCart');
+        if (savedCart) {
+          dispatch({ type: 'LOAD_CART', payload: JSON.parse(savedCart) });
+        }
+      }
+    };
+    loadCart();
+  }, [isAuthenticated]);
+
+  // Save cart to localStorage for guest users
+  useEffect(() => {
+    if (!isAuthenticated) {
+      localStorage.setItem('kuberFashionCart', JSON.stringify(cart));
     }
-  }, []);
+  }, [cart, isAuthenticated]);
 
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('kuberFashionCart', JSON.stringify(cart));
-  }, [cart]);
-
-  const addToCart = (product) => {
-    dispatch({ type: 'ADD_TO_CART', payload: product });
+  const addToCart = async (product) => {
+    if (isAuthenticated) {
+      try {
+        await cartAPI.addItem(product.id, 1, null, null);
+        dispatch({ type: 'ADD_TO_CART', payload: product });
+      } catch (error) {
+        console.error('Failed to add to cart:', error);
+      }
+    } else {
+      dispatch({ type: 'ADD_TO_CART', payload: product });
+    }
   };
 
-  const removeFromCart = (productId) => {
-    dispatch({ type: 'REMOVE_FROM_CART', payload: productId });
+  const removeFromCart = async (productId) => {
+    if (isAuthenticated) {
+      try {
+        await cartAPI.removeItem(productId);
+        dispatch({ type: 'REMOVE_FROM_CART', payload: productId });
+      } catch (error) {
+        console.error('Failed to remove from cart:', error);
+      }
+    } else {
+      dispatch({ type: 'REMOVE_FROM_CART', payload: productId });
+    }
   };
 
-  const updateQuantity = (productId, quantity) => {
+  const updateQuantity = async (productId, quantity) => {
     if (quantity <= 0) {
       removeFromCart(productId);
     } else {
-      dispatch({ type: 'UPDATE_QUANTITY', payload: { id: productId, quantity } });
+      if (isAuthenticated) {
+        try {
+          await cartAPI.updateItem(productId, quantity);
+          dispatch({ type: 'UPDATE_QUANTITY', payload: { id: productId, quantity } });
+        } catch (error) {
+          console.error('Failed to update quantity:', error);
+        }
+      } else {
+        dispatch({ type: 'UPDATE_QUANTITY', payload: { id: productId, quantity } });
+      }
     }
   };
 
-  const clearCart = () => {
-    dispatch({ type: 'CLEAR_CART' });
+  const clearCart = async () => {
+    if (isAuthenticated) {
+      try {
+        await cartAPI.clearCart();
+        dispatch({ type: 'CLEAR_CART' });
+      } catch (error) {
+        console.error('Failed to clear cart:', error);
+      }
+    } else {
+      dispatch({ type: 'CLEAR_CART' });
+    }
   };
 
   const value = {

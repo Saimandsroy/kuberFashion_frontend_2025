@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { supabase } from '../lib/supabaseClient';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
@@ -12,23 +11,18 @@ const api = axios.create({
   },
 });
 
-// Request interceptor - Add Supabase token to all requests
+// Request interceptor - Add backend JWT token
 api.interceptors.request.use(
   async (config) => {
     try {
-      // Get current Supabase session
-      const { data: { session }, error } = await supabase.auth.getSession();
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
       
-      if (error) {
-        console.warn('Error getting Supabase session:', error);
-        return config;
-      }
-      
-      if (session?.access_token) {
-        config.headers.Authorization = `Bearer ${session.access_token}`;
-        console.log('✅ Added Supabase token to request:', config.url);
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log('✅ Added backend JWT to request:', config.url);
       } else {
-        console.log('⚠️ No Supabase session found for request:', config.url);
+        console.log('⚠️ No token found for request:', config.url);
       }
     } catch (error) {
       console.error('❌ Error in request interceptor:', error);
@@ -42,7 +36,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor - Handle errors and token expiration
+// Response interceptor - Handle errors
 api.interceptors.response.use(
   (response) => {
     console.log('✅ API Response:', response.config.url, response.status);
@@ -54,45 +48,23 @@ api.interceptors.response.use(
     console.error('❌ API Error:', {
       url: error.config?.url,
       status: error.response?.status,
-      message: error.message,
-      data: error.response?.data
+      message: error.message
     });
     
-    // Handle 401 Unauthorized - Token expired or invalid
+    // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
-      try {
-        // Try to refresh the Supabase session
-        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError || !session) {
-          console.error('Failed to refresh session, logging out');
-          await supabase.auth.signOut();
-          
-          const publicPaths = ['/login', '/signup', '/admin', '/'];
-          const currentPath = window.location.pathname;
-          
-          if (!publicPaths.includes(currentPath)) {
-            window.location.href = '/login';
-          }
-          return Promise.reject(error);
-        }
-        
-        // Retry the original request with new token
-        originalRequest.headers.Authorization = `Bearer ${session.access_token}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        console.error('Session refresh failed:', refreshError);
-        await supabase.auth.signOut();
+      // Clear invalid token and redirect to login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      const publicPaths = ['/login', '/signup', '/admin', '/'];
+      const currentPath = window.location.pathname;
+      
+      if (!publicPaths.includes(currentPath)) {
         window.location.href = '/login';
-        return Promise.reject(error);
       }
-    }
-    
-    // Handle 403 Forbidden - Insufficient permissions
-    if (error.response?.status === 403) {
-      console.error('Access forbidden - insufficient permissions');
     }
     
     // Handle network errors

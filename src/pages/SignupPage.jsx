@@ -90,60 +90,33 @@ const SignupPage = () => {
     }
 
     setIsLoading(true);
-    setSuccess(false);
     
     try {
-      console.log('📝 Starting signup process...');
-      
-      const res = await register({ 
-        email: formData.email, 
+      const result = await register({
+        email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone
       });
-      
-      console.log('📝 Signup response:', res);
-      
-      if (!res.success) {
-        setIsLoading(false);
-        showNotification('error', res.error || 'Signup failed. Please try again.');
-        return;
-      }
 
-      // Show success message and set success state
-      setSuccess(true);
-      setIsLoading(false);
-      
-      if (res.requiresVerification) {
-        showNotification('success', 'Account created! Please check your email to verify your account before signing in.', 5000);
-        // Redirect after showing message
+      if (result.success) {
+        setSuccess(true);
+        showNotification('success', 'Account created successfully! Redirecting to dashboard...');
+        
+        // Redirect to user dashboard
         setTimeout(() => {
-          navigate('/login', { 
-            state: { 
-              message: 'Please verify your email before signing in',
-              email: formData.email 
-            }
-          });
-        }, 2500);
-      } else {
-        showNotification('success', 'Account created successfully! Redirecting to login...', 2000);
-        // Redirect for auto-confirmed accounts
-        setTimeout(() => {
-          navigate('/login', { 
-            state: { 
-              message: 'Account created successfully! You can now sign in.',
-              email: formData.email 
-            }
-          });
+          navigate('/user');
         }, 1500);
+      } else {
+        setErrors(result.error || 'Registration failed');
+        showNotification('error', result.error || 'Registration failed');
       }
-      
-    } catch (error) {
-      console.error('❌ Signup error:', error);
+    } catch (err) {
+      setErrors('An unexpected error occurred');
+      showNotification('error', 'An unexpected error occurred');
+    } finally {
       setIsLoading(false);
-      setSuccess(false);
-      showNotification('error', error.message || 'Signup failed. Please try again.');
     }
   };
 

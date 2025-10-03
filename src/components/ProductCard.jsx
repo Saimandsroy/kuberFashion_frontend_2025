@@ -5,6 +5,7 @@ import { ShoppingCart, Star, Heart, Eye } from 'lucide-react';
 import { Button } from './Button';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import RequireAuth from './RequireAuth';
 
 const ProductCard = ({ product }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -76,18 +77,20 @@ const ProductCard = ({ product }) => {
           )}
 
           {/* Wishlist Button */}
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleWishlistToggle}
-            className={`absolute top-3 right-3 z-10 p-2 rounded-full shadow-md transition-all duration-200 ${
-              isInWishlist(product.id) 
-                ? 'bg-[#FF4081] text-white' 
-                : 'bg-white/90 text-gray-600 hover:bg-white hover:text-[#FF4081]'
-            }`}
-          >
-            <Heart className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
-          </motion.button>
+          <RequireAuth action="add to wishlist">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleWishlistToggle}
+              className={`absolute top-3 right-3 z-10 p-2 rounded-full shadow-md transition-all duration-200 ${
+                isInWishlist(product.id) 
+                  ? 'bg-[#FF4081] text-white' 
+                  : 'bg-white/90 text-gray-600 hover:bg-white hover:text-[#FF4081]'
+              }`}
+            >
+              <Heart className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
+            </motion.button>
+          </RequireAuth>
 
           {/* Product Image */}
           <div className="relative h-full w-full">
@@ -183,19 +186,21 @@ const ProductCard = ({ product }) => {
 
       {/* Add to Cart Button */}
       <div className="p-3 sm:p-4 pt-0">
-        <Button
-          onClick={handleAddToCart}
-          disabled={!product.inStock}
-          className={`w-full flex items-center justify-center space-x-1 sm:space-x-2 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
-            product.inStock
-              ? 'bg-[#047BD2] hover:bg-[#0369A1] text-white hover:shadow-lg transform hover:-translate-y-0.5'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-          <span className="hidden sm:inline">{product.inStock ? 'Add to Cart' : 'Out of Stock'}</span>
-          <span className="sm:hidden">{product.inStock ? 'Add' : 'N/A'}</span>
-        </Button>
+        <RequireAuth action="add to cart">
+          <Button
+            onClick={handleAddToCart}
+            disabled={!product.inStock}
+            className={`w-full flex items-center justify-center space-x-1 sm:space-x-2 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
+              product.inStock
+                ? 'bg-[#047BD2] hover:bg-[#0369A1] text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">{product.inStock ? 'Add to Cart' : 'Out of Stock'}</span>
+            <span className="sm:hidden">{product.inStock ? 'Add' : 'N/A'}</span>
+          </Button>
+        </RequireAuth>
       </div>
     </motion.div>
   );

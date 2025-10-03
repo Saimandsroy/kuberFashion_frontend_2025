@@ -29,42 +29,33 @@ const LoginPage = ({ isAdmin = false }) => {
 const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setSuccess(false);
 
     try {
-      console.log('🔐 Starting login process...', { email: formData.email, isAdmin });
-      
       const loginFunction = isAdmin ? adminLogin : login;
-      const res = await loginFunction({ 
+      const result = await loginFunction({ 
         email: formData.email, 
         password: formData.password 
       });
       
-      console.log('📝 Login response:', res);
-      
-      if (!res.success) {
-        setIsLoading(false);
-        showNotification('error', res.error || 'Login failed. Please check your credentials.');
-        return;
-      }
-
-      // Show success state
-      setSuccess(true);
-      showNotification('success', 'Login successful! Redirecting...', 1500);
-      
-      // Auth state is already updated synchronously in useAuth
-      // No need for timeout - navigate immediately
-      if (isAdmin) {
-        console.log('✅ Redirecting to admin dashboard...');
-        navigate('/admin/dashboard', { replace: true });
+      if (result.success) {
+        setSuccess(true);
+        showNotification('success', 'Login successful! Redirecting...');
+        
+        // Redirect based on role
+        setTimeout(() => {
+          const userRole = result.user?.role;
+          if (isAdmin || userRole === 'ADMIN') {
+            navigate('/admin/dashboard');
+          } else {
+            navigate('/user');
+          }
+        }, 1000);
       } else {
-        console.log('✅ Redirecting to user dashboard...');
-        navigate('/user', { replace: true });
+        showNotification('error', result.error || 'Login failed');
       }
-      
-    } catch (error) {
-      console.error('❌ Login error:', error);
-      showNotification('error', error.message || 'Login failed. Please try again.');
+    } catch (err) {
+      showNotification('error', 'An unexpected error occurred');
+    } finally {
       setIsLoading(false);
     }
   };
